@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Supervisión M&D</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--text:#17202a;--muted:#6b7280;--line:#e5e7eb;--accent:#1769aa;--green:#198754;--yellow:#d39e00;--red:#c62828;--shadow:0 8px 24px rgba(15,23,42,.07)}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:#102a43;color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+header h1{margin:0;font-size:22px} header p{margin:5px 0 0;color:#cbd5e1;font-size:13px}
+.container{max-width:1250px;margin:auto;padding:22px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.metric{font-size:30px;font-weight:700;margin:7px 0}.label{font-size:13px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:1.7fr 1fr;gap:18px}.card h2{font-size:17px;margin:0 0 15px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+input,select,button{border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;font-size:14px}
+input,select{background:#fff} button{background:var(--accent);color:#fff;border:0;cursor:pointer} button.secondary{background:#64748b}
+button.danger{background:#b42318}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line)}th{color:#64748b;font-weight:600}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.green{background:#dcfce7;color:#166534}.yellow{background:#fef3c7;color:#92400e}.red{background:#fee2e2;color:#991b1b}.blue{background:#dbeafe;color:#1e40af}
+.progress{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden}.progress>span{display:block;height:100%;background:#1769aa}
+.list{display:flex;flex-direction:column;gap:10px}.item{padding:12px;border:1px solid var(--line);border-radius:9px}.item strong{font-size:13px}.item small{display:block;color:var(--muted);margin-top:4px}
+.empty{padding:25px;text-align:center;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:25px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.container{padding:12px}header{padding:18px}.card{padding:14px}table{font-size:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Panel de Supervisión M&D</h1><p>Control operativo · cuadrillas · observaciones · cumplimiento</p></div>
+  <button onclick="openModal()">+ Nueva observación</button>
+</header>
+
+<main class="container">
+<section class="grid">
+  <div class="card"><div class="label">Cuadrillas registradas</div><div class="metric" id="mCuadrillas">0</div><div class="label">En el control operativo</div></div>
+  <div class="card"><div class="label">Operativas</div><div class="metric" id="mOperativas">0</div><div class="label">Estado actual</div></div>
+  <div class="card"><div class="label">Observaciones abiertas</div><div class="metric" id="mAbiertas">0</div><div class="label">Requieren seguimiento</div></div>
+  <div class="card"><div class="label">Cumplimiento</div><div class="metric" id="mCumplimiento">0%</div><div class="progress"><span id="bar" style="width:0%"></span></div></div>
+</section>
+
+<section class="layout">
+<div class="card">
+<h2>Control de cuadrillas</h2>
+<div class="toolbar">
+<input id="search" placeholder="Buscar cuadrilla o zona..." oninput="render()">
+<select id="filter" onchange="render()"><option value="">Todos los estados</option><option>Operativa</option><option>Observada</option><option>Pendiente</option></select>
+</div>
+<table><thead><tr><th>Cuadrilla</th><th>Zona</th><th>Estado</th><th>Supervisor</th><th>Acción</th></tr></thead>
+<tbody id="teamBody"></tbody></table>
+</div>
+
+<div class="card">
+<h2>Seguimiento de observaciones</h2>
+<div class="list" id="obsList"></div>
+</div>
+</section>
+
+<section class="card" style="margin-top:18px">
+<h2>Resumen de cumplimiento</h2>
+<div class="grid" style="margin:0">
+  <div><div class="label">Documentación vehicular</div><div class="metric" style="font-size:24px">87%</div></div>
+  <div><div class="label">Licencias</div><div class="metric" style="font-size:24px">100%</div></div>
+  <div><div class="label">SST / EPP</div><div class="metric" style="font-size:24px">92%</div></div>
+  <div><div class="label">Observaciones cerradas</div><div class="metric" style="font-size:24px" id="closedPct">0%</div></div>
+</div>
+</section>
+</main>
+
+<footer>Prototipo local · Los datos se guardan en este navegador.</footer>
+
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);padding:20px">
+<div class="card" style="max-width:520px;margin:60px auto">
+<h2>Nueva observación</h2>
+<div class="toolbar" style="display:grid;grid-template-columns:1fr 1fr">
+<input id="oTeam" placeholder="Cuadrilla (ej. K41)">
+<input id="oType" placeholder="Tipo (SST, vehículo...)">
+<input id="oDesc" placeholder="Descripción" style="grid-column:1/-1">
+<select id="oPriority"><option>Alta</option><option>Media</option><option>Baja</option></select>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end"><button class="secondary" onclick="closeModal()">Cancelar</button><button onclick="addObservation()">Guardar</button></div>
+</div></div>
+
+<script>
+const defaultTeams=[
+ {id:1,name:"K29",zone:"Zona Norte",status:"Operativa",sup:"Supervisor 1"},
+ {id:2,name:"K02",zone:"Zona Centro",status:"Operativa",sup:"Supervisor 1"},
+ {id:3,name:"K37 Motowin",zone:"Zona Sur",status:"Observada",sup:"Supervisor 2"},
+ {id:4,name:"K13",zone:"Zona Norte",status:"Pendiente",sup:"Supervisor 2"},
+ {id:5,name:"K06 Motowin",zone:"Zona Centro",status:"Operativa",sup:"Supervisor 3"},
+ {id:6,name:"K21 Motowin",zone:"Zona Sur",status:"Operativa",sup:"Supervisor 3"}
+];
+let teams=JSON.parse(localStorage.getItem("md_teams")||"null")||defaultTeams;
+let observations=JSON.parse(localStorage.getItem("md_obs")||"null")||[
+ {id:1,team:"K37 Motowin",type:"SST",desc:"Validar evidencia de control de EPP",priority:"Alta",closed:false},
+ {id:2,team:"K13",type:"Vehículo",desc:"Pendiente validar documentación",priority:"Media",closed:false},
+ {id:3,team:"K29",type:"Calidad",desc:"Levantamiento de observación verificado",priority:"Baja",closed:true}
+];
+
+function save(){localStorage.setItem("md_teams",JSON.stringify(teams));localStorage.setItem("md_obs",JSON.stringify(observations))}
+function badge(s){let c=s==="Operativa"?"green":s==="Observada"?"yellow":"red";return `<span class="badge ${c}">${s}</span>`}
+function render(){
+ const q=document.getElementById("search").value.toLowerCase(), f=document.getElementById("filter").value;
+ const rows=teams.filter(t=>(!q||(t.name+" "+t.zone).toLowerCase().includes(q))&&(!f||t.status===f));
+ document.getElementById("teamBody").innerHTML=rows.map(t=>`<tr><td><strong>${t.name}</strong></td><td>${t.zone}</td><td>${badge(t.status)}</td><td>${t.sup}</td><td><button class="secondary" onclick="cycleStatus(${t.id})">Estado</button></td></tr>`).join("");
+ document.getElementById("obsList").innerHTML=observations.length?observations.map(o=>`<div class="item"><strong>${o.team} · ${o.type}</strong> <span class="badge ${o.closed?'green':o.priority==='Alta'?'red':'yellow'}">${o.closed?'Cerrada':o.priority}</span><small>${o.desc}</small><button style="margin-top:8px;padding:7px 9px" onclick="toggleObs(${o.id})">${o.closed?'Reabrir':'Cerrar'}</button></div>`).join(""):`<div class="empty">No hay observaciones.</div>`;
+ updateMetrics();
+}
+function updateMetrics(){
+ const open=observations.filter(o=>!o.closed).length, closed=observations.filter(o=>o.closed).length;
+ document.getElementById("mCuadrillas").textContent=teams.length;
+ document.getElementById("mOperativas").textContent=teams.filter(t=>t.status==="Operativa").length;
+ document.getElementById("mAbiertas").textContent=open;
+ const pct=observations.length?Math.round(closed/observations.length*100):100;
+ document.getElementById("mCumplimiento").textContent=pct+"%";document.getElementById("bar").style.width=pct+"%";
+ document.getElementById("closedPct").textContent=pct+"%";
+}
+function cycleStatus(id){const t=teams.find(x=>x.id===id);t.status=t.status==="Operativa"?"Observada":t.status==="Observada"?"Pendiente":"Operativa";save();render()}
+function toggleObs(id){const o=observations.find(x=>x.id===id);o.closed=!o.closed;save();render()}
+function openModal(){document.getElementById("modal").style.display="block"}
+function closeModal(){document.getElementById("modal").style.display="none"}
+function addObservation(){
+ const team=document.getElementById("oTeam").value.trim()||"Sin asignar",type=document.getElementById("oType").value.trim()||"General",desc=document.getElementById("oDesc").value.trim()||"Sin descripción",priority=document.getElementById("oPriority").value;
+ observations.unshift({id:Date.now(),team,type,desc,priority,closed:false});save();closeModal();document.getElementById("oTeam").value="";document.getElementById("oType").value="";document.getElementById("oDesc").value="";render();
+}
+render();
+</script>
+</body>
+</html>
